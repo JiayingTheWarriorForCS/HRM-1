@@ -70,14 +70,37 @@ def launch():
     config.checkpoint_path = os.path.dirname(eval_cfg.checkpoint)
 
     # ===== dataloader =====
-    _, _ = create_dataloader(config, "train", test_set_mode=False, epochs_per_iter=1,
-                            global_batch_size=config.global_batch_size, rank=0, world_size=1)
+    # _, _ = create_dataloader(config, "train", test_set_mode=False, epochs_per_iter=1,
+    #                         global_batch_size=config.global_batch_size, rank=0, world_size=1)
 
-    eval_loader, _ = create_dataloader(config, "test", test_set_mode=True, epochs_per_iter=1,
-                                       global_batch_size=config.global_batch_size, rank=0, world_size=1)
-
+    # eval_loader, _ = create_dataloader(config, "test", test_set_mode=True, epochs_per_iter=1,
+    #                                    global_batch_size=config.global_batch_size, rank=0, world_size=1)
+    # ===== dataloader =====
+    train_loader, train_metadata = create_dataloader(
+        config,
+        "train",
+        test_set_mode=False,
+        epochs_per_iter=1,
+        global_batch_size=config.global_batch_size,
+        rank=0,
+        world_size=1,
+    )
+    
+    eval_loader, _ = create_dataloader(
+        config,
+        "test",
+        test_set_mode=True,
+        epochs_per_iter=1,
+        global_batch_size=config.global_batch_size,
+        rank=0,
+        world_size=1,
+    )
+    
     # ===== load model =====
-    train_state = init_train_state(config, None, world_size=1)
+    train_state = init_train_state(config, train_metadata, world_size=1)
+    # ===== load model =====
+    
+    # train_state = init_train_state(config, None, world_size=1)
 
     try:
         train_state.model.load_state_dict(torch.load(eval_cfg.checkpoint, map_location=device), assign=True)

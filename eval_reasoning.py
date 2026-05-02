@@ -20,6 +20,11 @@ def evaluate_reasoning(model, loader, device="cuda"):
     final_mse = []
     intermediate_mse = []
     monotonic_scores = []
+    for batch in loader:
+        print("BATCH TYPE:", type(batch))
+        for i, x in enumerate(batch):
+            print(i, type(x), getattr(x, "shape", None))
+        break
 
     for batch in tqdm(loader):
         # ===== unpack =====

@@ -22,33 +22,48 @@ def evaluate_reasoning(model, loader, device="cuda"):
     monotonic_scores = []
 
     for batch in tqdm(loader):
-        start = batch["start_encoding"].to(device)
-        f1 = batch["frame_1_encoding"].to(device)
-        f2 = batch["frame_2_encoding"].to(device)
-        goal = batch["end_encoding"].to(device)
+        # ===== unpack =====
+        inputs = batch[0].to(device)   # (B, T)
+        labels = batch[1].to(device)   # (B, T)
 
+        # ===== forward =====
         with torch.no_grad():
-            outputs = model(start, goal)
-            if isinstance(outputs, dict):
-                z1_pred = outputs["z1"]
-                z2_pred = outputs["z2"]
-            elif isinstance(outputs, tuple):
-                z1_pred, z2_pred = outputs
-            else:
-                raise ValueError("Unknown model output format")
+            outputs = model(inputs)
+        if isinstance(outputs, dict):
+            logits = outputs.get("logits", None)
+        else:
+            logits = outputs
 
-        mse_final = torch.mean((z2_pred - goal) ** 2, dim=-1).mean().item()
+        if logits is None:
+            raise ValueError("Model output does not contain logits")
+
+        if logits.dim() == 2:
+            logits = logits.unsqueeze(-1)
+        start = logits[:, 0]
+        mid = logits[:, logits.shape[1] // 2]
+        goal = logits[:, -1]
+
+        # ground truth
+        if labels.dim() == 2:
+            labels = labels.unsqueeze(-1)
+
+        gt_start = labels[:, 0]
+        gt_mid = labels[:, labels.shape[1] // 2]
+        gt_goal = labels[:, -1]
+
+        mse_final = torch.mean((goal - gt_goal) ** 2, dim=-1).mean().item()
         final_mse.append(mse_final)
 
-        mse_f1 = torch.mean((z1_pred - f1) ** 2, dim=-1).mean().item()
-        mse_f2 = torch.mean((z2_pred - f2) ** 2, dim=-1).mean().item()
-        intermediate_mse.append((mse_f1 + mse_f2) / 2)
+        mse_mid = torch.mean((mid - gt_mid) ** 2, dim=-1).mean().item()
+        mse_start = torch.mean((start - gt_start) ** 2, dim=-1).mean().item()
 
-        d_start = torch.norm(start - goal, dim=-1)
-        d_z1 = torch.norm(z1_pred - goal, dim=-1)
-        d_z2 = torch.norm(z2_pred - goal, dim=-1)
+        intermediate_mse.append((mse_mid + mse_start) / 2)
 
-        monotonic = ((d_start > d_z1) & (d_z1 > d_z2)).float().mean().item()
+        d_start = torch.norm(start - gt_goal, dim=-1)
+        d_mid = torch.norm(mid - gt_goal, dim=-1)
+        d_goal = torch.norm(goal - gt_goal, dim=-1)
+
+        monotonic = ((d_start > d_mid) & (d_mid > d_goal)).float().mean().item()
         monotonic_scores.append(monotonic)
 
     return {
@@ -56,6 +71,47 @@ def evaluate_reasoning(model, loader, device="cuda"):
         "intermediate_mse": np.mean(intermediate_mse),
         "monotonic_score": np.mean(monotonic_scores),
     }
+    # model.eval()
+
+    # final_mse = []
+    # intermediate_mse = []
+    # monotonic_scores = []
+
+    # for batch in tqdm(loader):
+    #     start = batch["start_encoding"].to(device)
+    #     f1 = batch["frame_1_encoding"].to(device)
+    #     f2 = batch["frame_2_encoding"].to(device)
+    #     goal = batch["end_encoding"].to(device)
+
+    #     with torch.no_grad():
+    #         outputs = model(start, goal)
+    #         if isinstance(outputs, dict):
+    #             z1_pred = outputs["z1"]
+    #             z2_pred = outputs["z2"]
+    #         elif isinstance(outputs, tuple):
+    #             z1_pred, z2_pred = outputs
+    #         else:
+    #             raise ValueError("Unknown model output format")
+
+    #     mse_final = torch.mean((z2_pred - goal) ** 2, dim=-1).mean().item()
+    #     final_mse.append(mse_final)
+
+    #     mse_f1 = torch.mean((z1_pred - f1) ** 2, dim=-1).mean().item()
+    #     mse_f2 = torch.mean((z2_pred - f2) ** 2, dim=-1).mean().item()
+    #     intermediate_mse.append((mse_f1 + mse_f2) / 2)
+
+    #     d_start = torch.norm(start - goal, dim=-1)
+    #     d_z1 = torch.norm(z1_pred - goal, dim=-1)
+    #     d_z2 = torch.norm(z2_pred - goal, dim=-1)
+
+    #     monotonic = ((d_start > d_z1) & (d_z1 > d_z2)).float().mean().item()
+    #     monotonic_scores.append(monotonic)
+
+    # return {
+    #     "final_mse": np.mean(final_mse),
+    #     "intermediate_mse": np.mean(intermediate_mse),
+    #     "monotonic_score": np.mean(monotonic_scores),
+    # }
 
 
 def launch():

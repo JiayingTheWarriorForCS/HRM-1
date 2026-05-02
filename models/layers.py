@@ -8,7 +8,7 @@ try:
     from flash_attn_interface import flash_attn_func  # type: ignore[import]
 except ImportError:
     # Fallback to FlashAttention 2
-    from flash_attn import flash_attn_func  # type: ignore[import]
+    flash_attn_func = None  # type: ignore[import]
 
 from models.common import trunc_normal_init_
 
@@ -127,7 +127,24 @@ class Attention(nn.Module):
             query, key = apply_rotary_pos_emb(query, key, cos, sin)
 
         # flash attn
-        attn_output = flash_attn_func(q=query, k=key, v=value, causal=self.causal)
+        # attn_output = flash_attn_func(q=query, k=key, v=value, causal=self.causal)
+        d = query.size(-1)
+        q = query.transpose(1, 2)
+        k = key.transpose(1, 2)
+        v = value.transpose(1, 2)
+    
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d)
+    
+        if self.causal:
+            T = attn_scores.size(-1)
+            mask = torch.triu(torch.ones(T, T, device=attn_scores.device), diagonal=1).bool()
+            attn_scores = attn_scores.masked_fill(mask, float('-inf'))
+    
+        attn_probs = torch.softmax(attn_scores, dim=-1)
+        attn_output = torch.matmul(attn_probs, v)
+    
+        # (B, H, T, D) → (B, T, H, D)
+        attn_output = attn_output.transpose(1, 2)
         if isinstance(attn_output, tuple):  # fa2 and fa3 compatibility
             attn_output = attn_output[0]
 

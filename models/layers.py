@@ -144,7 +144,7 @@ class Attention(nn.Module):
         attn_output = torch.matmul(attn_probs, v)
     
         # (B, H, T, D) → (B, T, H, D)
-        attn_output = attn_output.transpose(1, 2)
+        attn_output = attn_output.transpose(1, 2).contiguous()
         if isinstance(attn_output, tuple):  # fa2 and fa3 compatibility
             attn_output = attn_output[0]
 

@@ -20,16 +20,17 @@ def evaluate_reasoning(model, loader, device="cuda"):
     final_mse = []
     intermediate_mse = []
     monotonic_scores = []
-    for batch in loader:
-        print("BATCH TYPE:", type(batch))
-        for i, x in enumerate(batch):
-            print(i, type(x), getattr(x, "shape", None))
-        break
 
     for batch in tqdm(loader):
         # ===== unpack =====
-        inputs = batch[0].to(device)   # (B, T)
-        labels = batch[1].to(device)   # (B, T)
+        data = batch[1] 
+
+        print(data.keys())
+        
+        inputs = data["inputs"].to(device)
+        labels = data["labels"].to(device)
+        # inputs = batch[0].to(device)   # (B, T)
+        # labels = batch[1].to(device)   # (B, T)
 
         # ===== forward =====
         with torch.no_grad():

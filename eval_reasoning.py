@@ -33,7 +33,7 @@ def evaluate_reasoning(model, loader, device="cuda"):
         # labels = batch[1].to(device)   # (B, T)
 
         # ===== forward =====
-        carry = model.initial_carry(inputs.shape[0])
+        carry = model.initial_carry(data)
         with torch.no_grad():
             carry, outputs = model(carry=carry, batch=data)
         if isinstance(outputs, dict):

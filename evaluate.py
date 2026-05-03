@@ -9,6 +9,38 @@ import pydantic
 from omegaconf import OmegaConf
 from pretrain import PretrainConfig, init_train_state, evaluate, create_dataloader
 
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+import numpy as np
+
+def plot_latent_trajectory(start, pred, goal, title="Trajectory"):
+    X = np.concatenate([start, pred, goal], axis=0)
+
+    pca = PCA(n_components=2)
+    X_2d = pca.fit_transform(X)
+
+    n = start.shape[0]
+
+    start_2d = X_2d[:n]
+    pred_2d  = X_2d[n:2*n]
+    goal_2d  = X_2d[2*n:]
+
+    plt.figure(figsize=(6,6))
+
+    plt.scatter(start_2d[:,0], start_2d[:,1], label="start", alpha=0.6)
+    plt.scatter(pred_2d[:,0],  pred_2d[:,1],  label="pred", alpha=0.6)
+    plt.scatter(goal_2d[:,0],  goal_2d[:,1],  label="goal", alpha=0.6)
+
+    for i in range(min(20, n)):
+        plt.arrow(start_2d[i,0], start_2d[i,1],
+                  pred_2d[i,0] - start_2d[i,0],
+                  pred_2d[i,1] - start_2d[i,1],
+                  alpha=0.3)
+
+    plt.title(title)
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 class EvalConfig(pydantic.BaseModel):
     checkpoint: str
@@ -76,6 +108,33 @@ def launch():
     
     train_state.model.eval()
     metrics = evaluate(config, train_state, eval_loader, eval_metadata, rank=RANK, world_size=WORLD_SIZE)
+    print("\nRunning visualization...")
+
+    batch = next(iter(eval_loader))
+    data = batch[1]
+    
+    inputs = data["inputs"].to("cuda")
+    labels = data["labels"].to("cuda")
+    
+    # ===== HRM prediction =====
+    train_state.model.eval()
+    
+    carry = train_state.model.initial_carry(data)
+    carry, outputs = train_state.model(carry=carry, batch=data)
+    
+    pred = outputs["preds"] 
+    
+    start = labels[:, :labels.shape[1]//4]
+    goal  = labels[:, labels.shape[1]//4 : labels.shape[1]//2]
+    pred_mid = pred[:, pred.shape[1]//4 : pred.shape[1]//2]
+    
+    start_np = start.detach().cpu().numpy()
+    pred_np  = pred_mid.detach().cpu().numpy()
+    goal_np  = goal.detach().cpu().numpy()
+    
+    plot_latent_trajectory(start_np, pred_np, goal_np, title="HRM")
+
+    plot_latent_trajectory(start_np, start_np, goal_np, title="V-JEPA baseline")
 
     if metrics is not None:
         print (metrics)

@@ -121,8 +121,11 @@ def evaluate_reasoning(model, loader, device="cuda"):
     # }
 
 
-def launch():
-    eval_cfg = EvalConfig(**OmegaConf.to_container(OmegaConf.from_cli()))
+def launch(checkpoint=None):
+    if checkpoint is None:
+        eval_cfg = EvalConfig(**OmegaConf.to_container(OmegaConf.from_cli()))
+    else:
+        eval_cfg = EvalConfig(checkpoint=checkpoint)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 

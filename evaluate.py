@@ -15,6 +15,24 @@ class EvalConfig(pydantic.BaseModel):
     
     save_outputs: List[str] = ["inputs", "labels", "puzzle_identifiers", "logits", "q_halt_logits", "q_continue_logits"]
 
+def eval_vjepa_baseline(loader, device="cuda"):
+    import torch
+    import numpy as np
+
+    mses = []
+
+    for batch in loader:
+        data = batch[1]
+
+        start = data["start_encoding"].to(device)
+        goal = data["end_encoding"].to(device)
+
+        pred = start  # baseline
+
+        mse = torch.mean((pred - goal) ** 2, dim=-1).mean().item()
+        mses.append(mse)
+
+    return np.mean(mses)
 
 def launch():
     eval_cfg = EvalConfig(**OmegaConf.to_container(OmegaConf.from_cli()))  # type: ignore
@@ -62,6 +80,13 @@ def launch():
 
     if metrics is not None:
         print (metrics)
+        print("\nRunning V-JEPA baseline...")
+    
+        mse_vjepa = eval_vjepa_baseline(eval_loader, device)
+        
+        print("\n===== Final Comparison =====")
+        print(f"HRM MSE: {metrics['all']['mse']:.6f}")
+        print(f"V-JEPA baseline MSE: {mse_vjepa:.6f}")
 
 
 if __name__ == "__main__":

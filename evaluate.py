@@ -24,14 +24,13 @@ def eval_vjepa_baseline(loader, device="cuda"):
     for batch in loader:
         data = batch[1]
 
-        start = data["start_encoding"].to(device)
-        goal = data["end_encoding"].to(device)
+        inputs = data["inputs"].to(device)
+        labels = data["labels"].to(device)
 
-        pred = start  # baseline
+        pred = inputs
 
-        mse = torch.mean((pred - goal) ** 2, dim=-1).mean().item()
+        mse = torch.mean((pred - labels) ** 2, dim=-1).mean().item()
         mses.append(mse)
-
     return np.mean(mses)
 
 def launch():

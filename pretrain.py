@@ -228,7 +228,6 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
             loss = loss + 1.0 * goal_loss + 1.0 * mono_loss
 
     ((1 / global_batch_size) * loss).backward()
-    print(train_state.carry.keys())
     
 
     if world_size > 1:

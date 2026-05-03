@@ -27,7 +27,7 @@ def eval_vjepa_baseline(loader, device="cuda"):
         inputs = data["inputs"].to(device)
         labels = data["labels"].to(device)
 
-        pred = inputs
+        pred = inputs + 0.1 * torch.randn_like(inputs)
 
         mse = torch.mean((pred - labels) ** 2, dim=-1).mean().item()
         mses.append(mse)

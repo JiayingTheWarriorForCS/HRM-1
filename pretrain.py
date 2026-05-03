@@ -205,25 +205,26 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
 
     import sys
     train_state.carry, loss, metrics, _, _ = train_state.model(carry=train_state.carry, batch=batch, return_keys=[])
+    if isinstance(batch, dict) and "labels" in batch and "inputs" in batch:
+        goal = batch["labels"]
+        start = batch["inputs"]
+        if isinstance(train_state.carry, dict):
+            for k in train_state.carry:
+                z = train_state.carry[k]
+                if torch.is_tensor(z):
+                    z_pred = z
+                    break
+    
+            goal_loss = torch.norm(z_pred - goal, dim=-1).mean()
+            d_start = torch.norm(start - goal, dim=-1)
+            d_pred = torch.norm(z_pred - goal, dim=-1)
+    
+            mono_loss = torch.relu(d_pred - d_start).mean()
+            loss = loss + 0.1 * goal_loss + 0.1 * mono_loss
+
     ((1 / global_batch_size) * loss).backward()
     print(train_state.carry.keys())
-    z_preds = train_state.carry["z"] if isinstance(train_state.carry, dict) else None
-
-    if isinstance(batch, dict) and "labels" in batch:
-        goal = batch["labels"]
-            if isinstance(z_preds, list) and len(z_preds) >= 2:
-            z1_pred = z_preds[-2]
-            z2_pred = z_preds[-1]
     
-            goal_loss = torch.norm(z2_pred - goal, dim=-1).mean()
-    
-            d_start = torch.norm(batch["inputs"] - goal, dim=-1)
-            d_z1 = torch.norm(z1_pred - goal, dim=-1)
-            d_z2 = torch.norm(z2_pred - goal, dim=-1)
-    
-            mono_loss = torch.relu(d_z2 - d_z1).mean()
-    
-            loss = loss + 0.1 * goal_loss + 0.1 * mono_loss
 
     if world_size > 1:
         for param in train_state.model.parameters():

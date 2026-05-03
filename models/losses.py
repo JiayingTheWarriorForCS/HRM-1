@@ -58,6 +58,15 @@ class ContinuousACTLossHead(nn.Module):
 
         diff = (preds[:, predict_mask] - labels[:, predict_mask].to(preds.dtype)) ** 2
         per_seq_mse = diff.mean(dim=(-1, -2))
+        start = labels[:, :int(labels.shape[1]/4)]
+        goal  = labels[:, int(labels.shape[1]/4):int(labels.shape[1]/2)]
+        pred_mid = preds[:, int(preds.shape[1]/4):int(preds.shape[1]/2)]
+        
+        d_start = torch.norm(start - goal, dim=-1)
+        d_pred  = torch.norm(pred_mid - goal, dim=-1)
+        
+        goal_loss = torch.norm(pred_mid - goal, dim=-1).mean()
+        mono_loss = torch.relu(d_pred - 0.8 * d_start).mean()
 
         with torch.no_grad():
             threshold = torch.quantile(per_seq_mse.float(), 0.25)
@@ -95,5 +104,8 @@ class ContinuousACTLossHead(nn.Module):
 
         all_outputs = {**outputs, "preds": preds}
         detached_outputs = {k: all_outputs[k].detach() for k in return_keys if k in all_outputs}
+        base_loss = mse_loss + 0.5 * (q_halt_loss + q_continue_loss)
+        total_loss = base_loss + 1.0 * goal_loss + 1.0 * mono_loss
 
-        return new_carry, mse_loss + 0.5 * (q_halt_loss + q_continue_loss), metrics, detached_outputs, new_carry.halted.all()
+
+        return new_carry, total_loss, metrics, detached_outputs, new_carry.halted.all()

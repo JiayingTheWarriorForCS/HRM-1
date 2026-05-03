@@ -209,18 +209,23 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         goal = batch["labels"]
         start = batch["inputs"]
         if isinstance(train_state.carry, dict):
-            for k in train_state.carry:
-                z = train_state.carry[k]
-                if torch.is_tensor(z):
-                    z_pred = z
+            z_pred = None
+
+            for k, v in train_state.carry.items():
+                if torch.is_tensor(v) and v.shape == goal.shape:
+                    z_pred = v
+                    print("Using latent:", k, v.shape)
                     break
+            
+            if z_pred is None:
+                raise ValueError("Can't find the latent")
     
             goal_loss = torch.norm(z_pred - goal, dim=-1).mean()
             d_start = torch.norm(start - goal, dim=-1)
             d_pred = torch.norm(z_pred - goal, dim=-1)
     
-            mono_loss = torch.relu(d_pred - d_start).mean()
-            loss = loss + 0.1 * goal_loss + 0.1 * mono_loss
+            mono_loss = torch.relu(d_pred - 0.8 * d_start).mean()
+            loss = loss + 1.0 * goal_loss + 1.0 * mono_loss
 
     ((1 / global_batch_size) * loss).backward()
     print(train_state.carry.keys())

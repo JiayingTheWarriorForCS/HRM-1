@@ -33,8 +33,9 @@ def evaluate_reasoning(model, loader, device="cuda"):
         # labels = batch[1].to(device)   # (B, T)
 
         # ===== forward =====
+        carry = model.initial_carry(inputs.shape[0], device=device)
         with torch.no_grad():
-            outputs = model(inputs)
+            carry, outputs = model(carry=carry, batch=data)
         if isinstance(outputs, dict):
             logits = outputs.get("logits", None)
         else:

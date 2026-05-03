@@ -82,7 +82,7 @@ def launch():
         print (metrics)
         print("\nRunning V-JEPA baseline...")
     
-        mse_vjepa = eval_vjepa_baseline(eval_loader, device)
+        mse_vjepa = eval_vjepa_baseline(eval_loader, "cuda")
         
         print("\n===== Final Comparison =====")
         print(f"HRM MSE: {metrics['all']['mse']:.6f}")

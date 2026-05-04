@@ -2,12 +2,13 @@ import torch
 import yaml
 from pretrain import PretrainConfig, init_train_state, create_dataloader
 
-CHECKPOINT = "/content/drive/MyDrive/HRM_outputs/less_size_run/step_14960"
+CKPT_DIR = "/content/drive/MyDrive/HRM_outputs/less_size_run"
+CKPT_FILE = "step_14960"
 
 device = "cuda"
 
 # ===== load config =====
-with open(f"{CHECKPOINT}/all_config.yaml", "r") as f:
+with open(f"{CKPT_DIR}/all_config.yaml", "r") as f:
     config = PretrainConfig(**yaml.safe_load(f))
 
 config.checkpoint_path = CHECKPOINT
@@ -23,7 +24,7 @@ loader, meta = create_dataloader(
 
 # ===== load model =====
 state = init_train_state(config, meta, world_size=1)
-state.model.load_state_dict(torch.load(f"{CHECKPOINT}/step_14960", map_location=device))
+state.model.load_state_dict(torch.load(f"{CKPT_DIR}/{CKPT_FILE}", map_location=device))
 model = state.model.to(device)
 model.eval()
 

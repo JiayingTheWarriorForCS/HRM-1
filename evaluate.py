@@ -42,25 +42,35 @@ def plot_latent_trajectory(start, pred, goal, title="Trajectory"):
     plt.grid()
     plt.show()
 
-def pseudo_mpc(start, pred, goal, steps=5, alpha=0.5):
+def mpc_planning(start, target, horizon=5, num_samples=128, noise_scale=0.1):
     """
     start: (N, D)
-    pred:  (N, D)  ← HRM output
-    goal:  (N, D)
+    target: (N, D)
 
-    return trajectory
+    return: best trajectory (list of z), final z
     """
-    traj = [start]
+    N, D = start.shape
 
-    z = start.copy()
+    best_loss = float("inf")
+    best_traj = None
 
-    for _ in range(steps):
-        z = (1 - alpha) * z + alpha * pred
-        z = (1 - alpha) * z + alpha * goal
+    for _ in range(num_samples):
+        z = start.copy()
+        traj = [z]
 
-        traj.append(z)
+        for t in range(horizon):
+            # ⭐ action = latent shift
+            action = np.random.randn(N, D) * noise_scale
+            z = z + action
+            traj.append(z)
 
-    return traj
+        loss = np.linalg.norm(z - target, axis=-1).mean()
+
+        if loss < best_loss:
+            best_loss = loss
+            best_traj = traj
+
+    return best_traj, best_loss
     
 
 class EvalConfig(pydantic.BaseModel):
@@ -156,19 +166,25 @@ def launch():
         print(f"V-JEPA baseline MSE: {mse_vjepa:.6f}")
     print("\nRunning pseudo-MPC rollout...")
 
-    print("\nRunning stable pseudo-MPC...")
+    print("\nRunning REAL MPC...")
 
-    traj = pseudo_mpc(start, pred, goal, steps=5, alpha=0.3)
+    traj_goal, loss_goal = mpc_planning(start, goal)
     
-    rollout_pred = traj[-1]
+    traj_mid, loss_mid = mpc_planning(start, pred)
+    
+    traj_mid2, loss_mid2 = mpc_planning(pred, goal)
+    
+    traj_hrm = traj_mid + traj_mid2
+    rollout_pred = traj_hrm[-1]
     
     def dist(a, b):
         return np.linalg.norm(a - b, axis=-1).mean()
     
     print("Start → Goal:", dist(start, goal))
-    print("Direct pred → Goal:", dist(pred, goal))
-    print("Rollout → Goal:", dist(rollout_pred, goal))
-    plot_latent_trajectory(start, rollout_pred, goal, title="MPC-like trajectory")
+    print("HRM pred → Goal:", dist(pred, goal))
+    print("MPC direct → Goal:", loss_goal)
+    print("MPC via HRM → Goal:", dist(rollout_pred, goal))
+    plot_latent_trajectory(start, rollout_pred, goal, title="REAL MPC with HRM")
 
 
 if __name__ == "__main__":

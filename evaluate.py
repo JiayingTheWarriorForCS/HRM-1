@@ -108,44 +108,7 @@ def launch():
     
     train_state.model.eval()
     metrics = evaluate(config, train_state, eval_loader, eval_metadata, rank=RANK, world_size=WORLD_SIZE)
-    print("\nRunning visualization...")
-
-    batch = next(iter(eval_loader))
-    data = batch[1]
     
-    inputs = data["inputs"].to("cuda")
-    labels = data["labels"].to("cuda")
-    
-    # ===== HRM prediction =====
-    train_state.model.eval()
-    
-    model = train_state.model
-    if hasattr(model, "_orig_mod"):
-        model = model._orig_mod
-    model = model.to("cuda")
-    model.eval()
-    carry = model.initial_carry(data)
-
-    carry, _, _, outputs, _ = model(
-        return_keys=["preds"],
-        carry=carry,
-        batch=data
-    )
-    
-    pred = outputs["preds"] 
-    
-    start = labels[:, :labels.shape[1]//4]
-    goal  = labels[:, labels.shape[1]//4 : labels.shape[1]//2]
-    pred_mid = pred[:, pred.shape[1]//4 : pred.shape[1]//2]
-    
-    start_np = start.detach().cpu().numpy()
-    pred_np  = pred_mid.detach().cpu().numpy()
-    goal_np  = goal.detach().cpu().numpy()
-    
-    plot_latent_trajectory(start_np, pred_np, goal_np, title="HRM")
-
-    plot_latent_trajectory(start_np, start_np, goal_np, title="V-JEPA baseline")
-
     if metrics is not None:
         print (metrics)
         print("\nRunning V-JEPA baseline...")

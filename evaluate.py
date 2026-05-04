@@ -119,7 +119,13 @@ def launch():
     # ===== HRM prediction =====
     train_state.model.eval()
     
-    carry = train_state.model.initial_carry(data)
+    model = train_state.model
+    if hasattr(model, "_orig_mod"):
+        model = model._orig_mod
+    
+    model.eval()
+    carry = model.initial_carry(data)
+
     carry, _, _, outputs, _ = train_state.model(
         return_keys=["preds"],
         carry=carry,

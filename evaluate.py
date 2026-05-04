@@ -122,7 +122,7 @@ def launch():
     model = train_state.model
     if hasattr(model, "_orig_mod"):
         model = model._orig_mod
-    
+    model = model.to("cuda")
     model.eval()
     carry = model.initial_carry(data)
 

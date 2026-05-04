@@ -58,7 +58,7 @@ def main():
     mse_list = []
 
     for _, batch, _ in eval_loader:
-        data = batch[1]
+        data = batch
 
         inputs = data["inputs"].to(device)
         labels = data["labels"].to(device)

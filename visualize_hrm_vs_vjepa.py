@@ -8,12 +8,19 @@ PRED_PATH = "/content/drive/MyDrive/HRM_outputs/less_size_run/step_14960_all_pre
 
 
 def plot_latent_trajectory(start, pred, goal, title):
-    X = np.concatenate([start, pred, goal], axis=0)
+    def flatten(x):
+        return x.reshape(-1, x.shape[-1])
+        
+    start_f = flatten(start)
+    pred_f  = flatten(pred)
+    goal_f  = flatten(goal)
+    
+    X = np.concatenate([start_f, pred_f, goal_f], axis=0)
 
     pca = PCA(n_components=2)
     X_2d = pca.fit_transform(X)
 
-    n = start.shape[0]
+    n = start_f.shape[0]
 
     s = X_2d[:n]
     p = X_2d[n:2*n]
@@ -24,11 +31,11 @@ def plot_latent_trajectory(start, pred, goal, title):
     plt.scatter(p[:,0], p[:,1], label="pred", alpha=0.6)
     plt.scatter(g[:,0], g[:,1], label="goal", alpha=0.6)
 
-    for i in range(min(20, n)):
+    for i in range(0, min(200, n), 10):
         plt.arrow(s[i,0], s[i,1],
                   p[i,0] - s[i,0],
                   p[i,1] - s[i,1],
-                  alpha=0.3)
+                  alpha=0.2)
 
     plt.title(title)
     plt.legend()

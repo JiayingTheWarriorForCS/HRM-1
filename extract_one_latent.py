@@ -11,7 +11,7 @@ device = "cuda"
 with open(f"{CKPT_DIR}/all_config.yaml", "r") as f:
     config = PretrainConfig(**yaml.safe_load(f))
 
-config.checkpoint_path = CHECKPOINT
+config.checkpoint_path = CKPT_DIR
 
 # ===== dataloader =====
 loader, meta = create_dataloader(

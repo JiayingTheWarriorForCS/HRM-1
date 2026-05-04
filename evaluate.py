@@ -42,11 +42,37 @@ def plot_latent_trajectory(start, pred, goal, title="Trajectory"):
     plt.grid()
     plt.show()
 
+def rollout_hrm(model, z_start, z_goal, steps=3):
+    z = torch.tensor(z_start).cuda()
+    z_goal = torch.tensor(z_goal).cuda()
+
+    for _ in range(steps):
+        batch = {
+            "inputs": z,
+            "labels": z_goal
+        }
+
+        carry = model.initial_carry(batch)
+        carry, _, _, outputs, _ = model(
+            carry=carry,
+            batch=batch,
+            return_keys=["hidden_states"]
+        )
+
+        z = outputs["hidden_states"]
+
+    return z.detach().cpu().numpy()
+    
+
 class EvalConfig(pydantic.BaseModel):
     checkpoint: str
     
-    save_outputs: List[str] = ["inputs", "labels", "puzzle_identifiers", "logits", "q_halt_logits", "q_continue_logits"]
-
+    # save_outputs: List[str] = ["inputs", "labels", "puzzle_identifiers", "logits", "q_halt_logits", "q_continue_logits"]
+    save_outputs: List[str] = [
+        "inputs",
+        "labels",
+        "hidden_states"
+    ]
 def eval_vjepa_baseline(loader, device="cuda"):
     import torch
     import numpy as np
@@ -108,7 +134,18 @@ def launch():
     
     train_state.model.eval()
     metrics = evaluate(config, train_state, eval_loader, eval_metadata, rank=RANK, world_size=WORLD_SIZE)
+    pred_file = os.path.join(config.checkpoint_path, f"step_{train_state.step}_all_preds.0")
+
+    all_preds = torch.load(pred_file)
     
+    inputs = all_preds["inputs"].cpu().numpy()
+    labels = all_preds["labels"].cpu().numpy()
+    hidden = all_preds["hidden_states"].cpu().numpy()
+    
+    N = 32
+    start = inputs[:N]
+    goal  = labels[:N]
+    pred  = hidden[:N]
     if metrics is not None:
         print (metrics)
         print("\nRunning V-JEPA baseline...")
@@ -118,6 +155,17 @@ def launch():
         print("\n===== Final Comparison =====")
         print(f"HRM MSE: {metrics['all']['mse']:.6f}")
         print(f"V-JEPA baseline MSE: {mse_vjepa:.6f}")
+    print("\nRunning pseudo-MPC rollout...")
+
+    rollout_pred = rollout_hrm(train_state.model, start, goal, steps=3)
+    
+    def dist(a, b):
+        return np.linalg.norm(a - b, axis=-1).mean()
+    
+    print("Start → Goal:", dist(start, goal))
+    print("Direct pred → Goal:", dist(pred, goal))
+    print("Rollout → Goal:", dist(rollout_pred, goal))
+    plot_latent_trajectory(start, rollout_pred, goal, title="MPC-like trajectory")
 
 
 if __name__ == "__main__":

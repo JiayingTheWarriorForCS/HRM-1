@@ -42,26 +42,25 @@ def plot_latent_trajectory(start, pred, goal, title="Trajectory"):
     plt.grid()
     plt.show()
 
-def rollout_hrm(model, z_start, z_goal, steps=3):
-    z = torch.tensor(z_start).cuda()
-    z_goal = torch.tensor(z_goal).cuda()
+def pseudo_mpc(start, pred, goal, steps=5, alpha=0.5):
+    """
+    start: (N, D)
+    pred:  (N, D)  ← HRM output
+    goal:  (N, D)
+
+    return trajectory
+    """
+    traj = [start]
+
+    z = start.copy()
 
     for _ in range(steps):
-        batch = {
-            "inputs": z,
-            "labels": z_goal
-        }
+        z = (1 - alpha) * z + alpha * pred
+        z = (1 - alpha) * z + alpha * goal
 
-        carry = model.initial_carry(batch)
-        carry, _, _, outputs, _ = model(
-            carry=carry,
-            batch=batch,
-            return_keys=["hidden_states"]
-        )
+        traj.append(z)
 
-        z = outputs["hidden_states"]
-
-    return z.detach().cpu().numpy()
+    return traj
     
 
 class EvalConfig(pydantic.BaseModel):
@@ -157,7 +156,11 @@ def launch():
         print(f"V-JEPA baseline MSE: {mse_vjepa:.6f}")
     print("\nRunning pseudo-MPC rollout...")
 
-    rollout_pred = rollout_hrm(train_state.model, start, goal, steps=3)
+    print("\nRunning stable pseudo-MPC...")
+
+    traj = pseudo_mpc(start, pred, goal, steps=5, alpha=0.3)
+    
+    rollout_pred = traj[-1]
     
     def dist(a, b):
         return np.linalg.norm(a - b, axis=-1).mean()

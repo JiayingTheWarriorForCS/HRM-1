@@ -138,9 +138,9 @@ def launch():
 
     all_preds = torch.load(pred_file)
     
-    inputs = all_preds["inputs"].cpu().numpy()
-    labels = all_preds["labels"].cpu().numpy()
-    hidden = all_preds["hidden_states"].cpu().numpy()
+    inputs = all_preds["inputs"].float().cpu().numpy()
+    labels = all_preds["labels"].float().cpu().numpy()
+    hidden = all_preds["hidden_states"].float().cpu().numpy()
     
     N = 32
     start = inputs[:N]

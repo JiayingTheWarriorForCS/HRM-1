@@ -45,13 +45,12 @@ def main():
 
     inputs = all_preds["inputs"].numpy()
     labels = all_preds["labels"].numpy()
-    hidden = all_preds["hidden_states"].numpy()
 
     L = labels.shape[1]
 
     start = labels[:, :L//4]
     goal  = labels[:, L//4 : L//2]
-    pred_hrm = hidden[:, L//4 : L//2]
+    pred_hrm = inputs[:, :L//4]
 
     plot_latent_trajectory(start, pred_hrm, goal, "HRM")
 

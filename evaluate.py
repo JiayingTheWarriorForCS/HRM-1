@@ -126,7 +126,7 @@ def launch():
     model.eval()
     carry = model.initial_carry(data)
 
-    carry, _, _, outputs, _ = train_state.model(
+    carry, _, _, outputs, _ = model(
         return_keys=["preds"],
         carry=carry,
         batch=data

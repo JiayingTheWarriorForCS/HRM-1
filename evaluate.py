@@ -59,7 +59,6 @@ def mpc_planning(start, target, horizon=5, num_samples=128, noise_scale=0.1):
         traj = [z]
 
         for t in range(horizon):
-            # ⭐ action = latent shift
             action = np.random.randn(N, D) * noise_scale
             z = z + action
             traj.append(z)
@@ -152,9 +151,9 @@ def launch():
     hidden = all_preds["hidden_states"].float().cpu().numpy()
     
     N = 32
-    start = inputs[:N]
-    goal  = labels[:N]
-    pred  = hidden[:N]
+    start = inputs[:N].mean(axis=1)
+    goal  = labels[:N].mean(axis=1)
+    pred  = hidden[:N].mean(axis=1)
     if metrics is not None:
         print (metrics)
         print("\nRunning V-JEPA baseline...")

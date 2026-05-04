@@ -42,6 +42,15 @@ def plot_latent_trajectory(start, pred, goal, title="Trajectory"):
     plt.grid()
     plt.show()
 
+def normalize(x):
+    return x / (np.linalg.norm(x, axis=-1, keepdims=True) + 1e-8)
+
+def cosine_similarity(a, b):
+    a = normalize(a)
+    b = normalize(b)
+    return (a * b).sum(axis=-1)
+
+
 def mpc_planning(start, target, horizon=5, num_samples=128, noise_scale=0.1):
     """
     start: (N, D)
@@ -154,6 +163,17 @@ def launch():
     start = inputs[:N].mean(axis=1)
     goal  = labels[:N].mean(axis=1)
     pred  = hidden[:N].mean(axis=1)
+    direction_pred = pred - start
+    direction_goal = goal - start
+    
+    cos_sim = cosine_similarity(direction_pred, direction_goal)
+    
+    print("\n===== Direction Alignment =====")
+    print("Mean cosine similarity:", cos_sim.mean())
+    print("Std:", cos_sim.std())
+    print("\nSample cosine values:", cos_sim[:10])
+    positive_ratio = (cos_sim > 0).mean()
+    print("Positive direction ratio:", positive_ratio)
     if metrics is not None:
         print (metrics)
         print("\nRunning V-JEPA baseline...")

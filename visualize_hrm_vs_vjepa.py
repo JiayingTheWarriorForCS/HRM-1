@@ -8,39 +8,52 @@ PRED_PATH = "/content/drive/MyDrive/HRM_outputs/less_size_run/step_14960_all_pre
 
 
 def plot_latent_trajectory(start, pred, goal, title):
-    def flatten(x):
-        return x.reshape(-1, x.shape[-1])
-        
-    start_f = flatten(start)
-    pred_f  = flatten(pred)
-    goal_f  = flatten(goal)
-    
-    X = np.concatenate([start_f, pred_f, goal_f], axis=0)
 
-    pca = PCA(n_components=2)
-    X_2d = pca.fit_transform(X)
+    # ===== Fix 1: 平均时间维度 =====
+    start = start.mean(axis=1)
+    pred  = pred.mean(axis=1)
+    goal  = goal.mean(axis=1)
 
-    n = start_f.shape[0]
+    # ===== Fix 2: 采样 =====
+    idx = np.random.choice(len(start), size=min(200, len(start)), replace=False)
+    start = start[idx]
+    pred  = pred[idx]
+    goal  = goal[idx]
+
+    # ===== Fix 3: 标准化 =====
+    def normalize(x):
+        return (x - x.mean(0)) / (x.std(0) + 1e-6)
+
+    start = normalize(start)
+    pred  = normalize(pred)
+    goal  = normalize(goal)
+
+    # ===== PCA =====
+    X = np.concatenate([start, pred, goal], axis=0)
+    X_2d = PCA(n_components=2).fit_transform(X)
+
+    n = start.shape[0]
 
     s = X_2d[:n]
     p = X_2d[n:2*n]
     g = X_2d[2*n:]
 
     plt.figure(figsize=(6,6))
-    plt.scatter(s[:,0], s[:,1], label="start", alpha=0.6)
-    plt.scatter(p[:,0], p[:,1], label="pred", alpha=0.6)
-    plt.scatter(g[:,0], g[:,1], label="goal", alpha=0.6)
+    plt.scatter(s[:,0], s[:,1], label="start", alpha=0.5)
+    plt.scatter(p[:,0], p[:,1], label="pred", alpha=0.5)
+    plt.scatter(g[:,0], g[:,1], label="goal", alpha=0.5)
 
-    for i in range(0, min(200, n), 10):
+    for i in range(min(30, n)):
         plt.arrow(s[i,0], s[i,1],
                   p[i,0] - s[i,0],
                   p[i,1] - s[i,1],
-                  alpha=0.2)
+                  alpha=0.3)
 
     plt.title(title)
     plt.legend()
     plt.grid()
     plt.show()
+
 
 
 def main():
